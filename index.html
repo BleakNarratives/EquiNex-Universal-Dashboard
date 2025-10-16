@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EquiNex Universal Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Default theme vars to prevent flash of unstyled content */
+            --color-bg-main: #020617;
+            --color-text-primary: #e2e8f0;
+        }
+        body {
+            background-color: var(--color-bg-main);
+            color: var(--color-text-primary);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+        }
+        .font-display { font-family: 'Teko', sans-serif; }
+        .font-body { font-family: 'Share Tech Mono', monospace; }
+
+        /* Enhanced Glass Panel with theme-aware border gradient */
+        .glass-panel {
+            background-color: rgba(15, 23, 42, 0.7); /* Fallback */
+            background-color: var(--color-bg-card, rgba(15, 23, 42, 0.7));
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.2); /* Fallback */
+            border-color: var(--color-border, rgba(56, 189, 248, 0.2));
+            position: relative;
+        }
+
+        /* Focus Ring for Accessibility */
+        *:focus-visible {
+            outline: 2px solid var(--color-primary-to, #0ea5e9);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.546.0",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+        "react-error-boundary": "https://aistudiocdn.com/react-error-boundary@^6.0.0"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

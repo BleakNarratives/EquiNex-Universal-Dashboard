@@ -1,0 +1,7 @@
+{
+  "name": "EquiNex Universal Dashboard",
+  "description": "A cyberpunk-themed dashboard for monitoring system health, real-time metrics, and module statuses for the EquiNex platform.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
