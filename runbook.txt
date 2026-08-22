@@ -1,0 +1,26 @@
+EQUINEX-UNIVERSAL-DASHBOARD — OPERATIONAL RUNBOOK
+================================================
+
+PURPOSE
+-------
+Universal dashboard for the EquiNex platform. Part of the Boardroom/EquiLex family.
+
+RELATED PROJECTS
+----------------
+EquiLex/                       — Legal/equity component
+Code-City-Apocalypse/          — Boardroom orchestrator integration
+
+SAFE OPERATIONS
+---------------
+# Explore
+ls -la
+find . -name "*.html" -o -name "*.py" -o -name "*.js" -o -name "*.json" | head -20
+
+# Check git
+git log --oneline -3 2>/dev/null
+
+RECOVERY NOTES
+--------------
+- Dashboard may be web-based (check for HTML/JS)
+- Integrates with Boardroom orchestrator in Code-City-Apocalypse
+- Related HTML: equinex_v1.html in Code-City-Apocalypse/Code_City_Unified/
