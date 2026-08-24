@@ -1,157 +1,174 @@
 # EquiNex Universal Dashboard
 
-Welcome, operative. This is the central command interface for the EquiNex platform, a high-performance, AI-driven dashboard designed for real-time system monitoring, security analysis, and autonomous operations.
+**Real-time AI-powered system monitoring, security analysis, and autonomous operations.**
 
-This document serves as a comprehensive guide for developers integrating and deploying this frontend.
+A React 19 dashboard with a FastAPI backend. Live metrics, AI assistant, file integrity monitoring, traffic analysis, OSINT scanning, and an autonomous AI operative (A.D.E.P.T.) — all in one interface.
 
-## Running End to End
+---
 
-The dashboard now ships with a live FastAPI backend. Every service layer calls
-real endpoints through a Vite dev proxy (`/api` and `/ws` → port 8000), with
-graceful fallback to local mock data when the backend is down.
+## Demo
 
 ```bash
-# 1. Frontend deps
-cd ~/EquiNex-Universal-Dashboard && npm install
-
-# 2. Backend (FastAPI)
+# Install
+npm install
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt
 
-# 3. Terminal A: backend on :8000
-.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+# Run (two terminals)
+.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000  # Terminal A
+npm run dev                                                      # Terminal B
 
-# 4. Terminal B: frontend on :3000
-npm run dev
-# open http://localhost:3000
+# Open http://localhost:3000
 ```
 
-Optional: set `GEMINI_API_KEY` (or a `.env` with `GEMINI_API_KEY=...`) to power
-the live AI assistant; without it the app still runs fully on the backend.
+Optional: Add `GEMINI_API_KEY` to `.env` for the live AI assistant.
 
-See `backend/README.md` for the full API surface and the Windows 10 EOL
-isolation directive.
+---
 
-## Section 1: Features
+## Features
 
--   **Dynamic Theming**: UI aesthetic shifts based on the selected AI Persona (`Aura`, `Cygnus`, `Orion`, `Vela`, `Scorpius`).
--   **Real-time Metrics**: At-a-glance dashboard with key performance indicators.
--   **Autonomous AI Operative (A.D.E.P.T.)**: A simulated AI agent that performs preemptive defensive actions based on system telemetry.
--   **Live Voice Interface**: Real-time, low-latency voice command and conversation with an AI core.
--   **Interactive Terminal**: A `Termux`-style command-line interface with NLP capabilities for advanced operations.
--   **Advanced Security Modules**:
-    -   **Traffic Analysis**: Simulates real-time network monitoring and DDoS mitigation.
-    -   **File Integrity Monitor**: Tracks critical file hashes and alerts on tampering.
-    -   **Security Audit Log**: A dedicated feed for security-related events.
--   **Cross-Platform Profile Transfer**: Export and import your entire user configuration (persona, theme) as a JSON file.
+| Feature | What it does |
+|---------|--------------|
+| **Dashboard Metrics** | Real-time KPIs — users, revenue, module status, system health |
+| **AI Assistant** | Gemini-powered chat interface with conversation history |
+| **A.D.E.P.T. Operative** | Autonomous AI agent — preemptive defensive actions |
+| **Traffic Analysis** | Live network monitoring, DDoS detection, protocol breakdown |
+| **File Integrity Monitor** | Hash tracking, tamper detection, file quarantine |
+| **Security Audit Log** | Security event feed with severity levels |
+| **OSINT Scanner** | Port scanning, vulnerability detection, threat intel |
+| **Module Status** | Live status of all system modules (Online/Offline/Degraded) |
+| **Dynamic Theming** | 5 AI personas — Aura, Cygnus, Orion, Vela, Scorpius |
+| **Voice Interface** | Real-time voice commands (WebSocket) |
+| **Terminal** | NLP-powered command line with system access |
 
-## Section 2: Tech Stack
+---
 
--   **Framework**: React 19
--   **Language**: TypeScript
--   **AI Integration**: Google Gemini API (`@google/genai`)
--   **Styling**: Global CSS variables with dynamic theming. No CSS-in-JS libraries or Tailwind for maximum performance and portability.
--   **Icons**: Lucide React
-
-## Section 3: Termux Terminal Commands
-
-The terminal provides direct access to advanced system functions.
-
--   `help`: Lists all available commands.
--   `scan <target_ip_or_domain>`: Initiates a simulated OSINT network scan on the specified target.
--   `lookup <sha256_hash>`: Queries the Threat Intelligence database for a known malicious file hash.
--   `git clone <repo_url>`: Simulates cloning a repository from a git provider.
--   `hf pull <space_id>`: Simulates pulling an AI model or space from Hugging Face.
--   `clear`: Clears the terminal history.
--   **Natural Language**: You can also type commands in plain English (e.g., "scan the corporate server").
-
-## Section 4: Python FastAPI Backend Integration
-
-This frontend is designed to be backend-agnostic but is optimized for a Python FastAPI environment. The following provides a clear guide to wiring up the mock services to live endpoints.
-
-**Pydantic Models (Example)**
-
-```python
-# models.py
-from pydantic import BaseModel, Field
-from typing import List, Literal
-
-class ModuleStatus(BaseModel):
-    module_name: str
-    status: Literal['Online', 'Offline', 'Degraded', 'Isolated']
-    version: str
-
-class DashboardMetrics(BaseModel):
-    overall_status: Literal['HEALTHY', 'DEGRADED', 'ERROR']
-    pattern_journal_summary: str
-    total_users: int
-    active_users_24h: int
-    total_revenue: float
-    transactions_24h: int
-    modules: List[ModuleStatus]
-    gpu_temp: float = Field(..., alias="gpuTemp")
-    frame_latency: float = Field(..., alias="frameLatency")
+## Architecture
 
 ```
-
-**FastAPI Endpoints (Example)**
-
-```python
-# main.py
-from fastapi import FastAPI
-from .models import DashboardMetrics
-# ... import your data sources
-
-app = FastAPI()
-
-@app.get("/api/metrics", response_model=DashboardMetrics)
-async def get_dashboard_metrics():
-    # Replace with your actual data fetching logic
-    metrics_data = await your_data_source.get_all_metrics()
-    return metrics_data
-
-@app.post("/api/osint/scan")
-async def scan_target(target: str):
-    scan_result = await your_osint_tool.run_scan(target)
-    return scan_result
-
-# Use WebSockets for real-time services like TrafficAnalysis
-from fastapi import WebSocket
-
-@app.websocket("/ws/traffic")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            # Stream your real-time traffic data
-            data = await your_traffic_monitor.get_latest_data()
-            await websocket.send_json(data.dict())
-            await asyncio.sleep(0.5) # 500ms interval
-    except WebSocketDisconnect:
-        print("Client disconnected")
-
+┌─────────────────────────────────────────┐
+│  React 19 Frontend (Vite)              │
+│  TypeScript · Lucide Icons             │
+│  Dynamic CSS Theming · WebSocket       │
+└──────────────┬──────────────────────────┘
+               │ /api + /ws proxy
+               ▼
+┌─────────────────────────────────────────┐
+│  FastAPI Backend (Python)              │
+│  In-memory state · WebSocket streams   │
+│  15 REST endpoints + 2 WebSocket feeds │
+└──────────────────┬──────────────────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+   ┌───────────┐      ┌───────────┐
+   │ Gemini AI │      │ OSINT/     │
+   │ Assistant │      │ Threat Intel│
+   └───────────┘      └───────────┘
 ```
 
-## Section 5: Security Directives & OS Lifecycle Management
+---
 
-The A.D.E.P.T. operative's logic should be augmented with a strategic threat model that accounts for external, non-code vulnerabilities.
+## API Endpoints
 
-**Windows 10 End-of-Life (EOL) Directive:**
+| Method | Endpoint | What |
+|--------|----------|------|
+| GET | `/api/health` | Liveness probe |
+| GET | `/api/metrics` | Dashboard KPIs + module statuses |
+| GET | `/api/logs` | System event log |
+| GET | `/api/historical/{metric}` | 30-day time series |
+| POST | `/api/modules/status` | Update module status |
+| GET | `/api/security/logs` | Security audit feed |
+| POST | `/api/osint/scan` | Port/vulnerability scan |
+| POST | `/api/threat-intel/lookup` | Hash reputation lookup |
+| GET | `/api/files/status` | File integrity status |
+| POST | `/api/files/quarantine` | Quarantine tampered file |
+| POST | `/api/devops/git-clone` | Simulate git clone |
+| POST | `/api/devops/hf-pull` | Simulate HF space pull |
+| GET | `/api/endpoints` | Endpoint inventory |
+| POST | `/api/endpoints/isolate` | Isolate an endpoint |
+| WS | `/ws/traffic` | Real-time traffic stream |
+| WS | `/ws/operative` | A.D.E.P.T. action stream |
 
--   **Endpoint Inventory**: The backend must provide an endpoint inventory API (`/api/endpoints`) that lists all connected devices, their OS, and patch level.
--   **Threat Prioritization**: The frontend `operativeService` should be modified to consume this data. Any endpoint running Windows 10 post-EOL (October 14, 2025) must be flagged as a `CRITICAL` vulnerability.
--   **A.D.E.P.T. Response**: Upon detecting a vulnerable EOL endpoint, A.D.E.P.T. should autonomously execute a "Network Isolation" action (`POST /api/endpoints/isolate`). The reasoning should clearly state: "Proactive isolation of EOL Windows 10 endpoint to mitigate unpatchable vulnerability exposure."
+---
 
-## Section 6: Testing & Quality Assurance
+## Tech Stack
 
-To ensure the stability and reliability of the dashboard, a suite of unit tests should be implemented and maintained. The tests outlined in `/tests/README.md` serve as the foundational blueprint for this effort.
+| Layer | Tech |
+|-------|------|
+| Frontend | React 19, TypeScript, Vite, Lucide Icons |
+| Styling | Global CSS variables, dynamic theming (no Tailwind) |
+| Backend | Python 3.10+, FastAPI, Pydantic |
+| AI | Google Gemini (`@google/genai`) |
+| Real-time | WebSocket (traffic + operative streams) |
+| Data | In-memory (session-scoped, resets on restart) |
 
--   **Framework**: Jest & React Testing Library are recommended.
--   **CI/CD Pipeline**: Integrate test execution into your CI/CD pipeline (e.g., GitHub Actions) to automatically run tests on every commit, preventing regressions from being merged into the main branch.
+---
 
-## Section 7: Cross-Platform Profile Transfer
+## Project Structure
 
-The dashboard supports user profile portability.
+```
+EquiNex-Universal-Dashboard/
+├── App.tsx                    Root component
+├── index.tsx                  Entry point
+├── components/
+│   ├── Dashboard.tsx          Main dashboard layout
+│   ├── AIAssistant.tsx        Gemini-powered chat
+│   ├── AutonomousOperative.tsx A.D.E.P.T. agent
+│   ├── TrafficAnalysis.tsx    Network monitoring
+│   ├── FileIntegrityMonitor.tsx File hash tracking
+│   ├── SecurityAuditLog.tsx   Security events
+│   ├── SystemHealth.tsx       System health view
+│   ├── ModuleStatusTable.tsx  Module status grid
+│   ├── Header.tsx             Top bar + persona selector
+│   └── ...                    15+ components
+├── services/
+│   ├── api.ts                 Backend API client
+│   ├── aiService.ts           Gemini AI integration
+│   ├── metricsService.ts      Metrics fetching
+│   ├── securityService.ts     Security data
+│   └── ...                    8 service layers
+├── contexts/
+│   ├── AppContext.tsx          Global state
+│   └── ThemeContext.tsx        Persona theming
+├── backend/
+│   ├── main.py                FastAPI app (563 lines)
+│   ├── requirements.txt       Python deps
+│   └── README.md              Backend docs
+├── .env.example               Configuration
+├── package.json               Node deps
+└── vite.config.ts             Build config
+```
 
--   **Export**: In the Settings modal, the "Export Profile" button will save a JSON file (`equinex_profile.json`) containing the user's current persona and theme settings.
--   **Import**: The "Import Profile" button allows the user to upload a previously exported profile, instantly applying the saved settings to the current session. This is ideal for maintaining a consistent user experience across different devices or browsers.
+---
+
+## Configuration
+
+Only one key is needed:
+
+| Key | Purpose | Required |
+|-----|---------|----------|
+| `GEMINI_API_KEY` | AI assistant chat | No (app works without it) |
+
+```bash
+cp .env.example .env
+# Add your Gemini key (optional)
+```
+
+---
+
+## Persona Themes
+
+| Persona | Accent | Personality |
+|---------|--------|-------------|
+| **Aura** | Cyan | Calm, analytical, precise |
+| **Cygnus** | Purple | Creative, exploratory, visionary |
+| **Orion** | Gold | Commanding, strategic, bold |
+| **Vela** | Teal | Efficient, methodical, reliable |
+| **Scorpius** | Red | Aggressive, defensive, vigilant |
+
+---
+
+## License
+
+MIT — Built by Mike / BleakNarratives
