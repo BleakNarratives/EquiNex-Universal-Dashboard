@@ -1,4 +1,5 @@
 import { ISecurityLogEntry } from '../types';
+import { withFallback } from './api';
 
 const securityEvents = [
     { level: 'AUDIT', event: 'Firewall rule #4812 updated: DENY traffic from ASN-CVI-21' },
@@ -18,33 +19,35 @@ const generateRandomIp = (): string => {
     return `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
 };
 
-const fetchSecurityLogs = (): Promise<ISecurityLogEntry[]> => {
-    console.log("Calling Production Endpoint: GET /api/security/logs");
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const now = new Date();
-            const logs: ISecurityLogEntry[] = [];
-            
-            for(let i=0; i < 8; i++) {
-                const eventTemplate = securityEvents[i % securityEvents.length];
-                logs.push({
-                    ...eventTemplate,
-                    timestamp: new Date(now.getTime() - (30 - i) * 1000 * Math.random() * 5).toISOString(),
-                    source_ip: generateRandomIp(),
-                });
-            }
-            
-            const newEvent = securityEvents[Math.floor(Math.random() * securityEvents.length)];
-            logs.push({
-                ...newEvent,
-                timestamp: now.toISOString(),
-                source_ip: generateRandomIp(),
-            });
+const getMockSecurityLogs = (): ISecurityLogEntry[] => {
+    const now = new Date();
+    const logs: ISecurityLogEntry[] = [];
 
-            logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-            resolve(logs);
-        }, 750);
+    for (let i = 0; i < 8; i++) {
+        const eventTemplate = securityEvents[i % securityEvents.length];
+        logs.push({
+            ...eventTemplate,
+            timestamp: new Date(now.getTime() - (30 - i) * 1000 * Math.random() * 5).toISOString(),
+            source_ip: generateRandomIp(),
+        });
+    }
+
+    const newEvent = securityEvents[Math.floor(Math.random() * securityEvents.length)];
+    logs.push({
+        ...newEvent,
+        timestamp: now.toISOString(),
+        source_ip: generateRandomIp(),
     });
+
+    logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return logs;
+};
+
+const fetchSecurityLogs = (): Promise<ISecurityLogEntry[]> => {
+    return withFallback<ISecurityLogEntry[]>(
+        '/api/security/logs',
+        () => new Promise(resolve => setTimeout(() => resolve(getMockSecurityLogs()), 750)),
+    );
 };
 
 export const securityService = {

@@ -4,6 +4,34 @@ Welcome, operative. This is the central command interface for the EquiNex platfo
 
 This document serves as a comprehensive guide for developers integrating and deploying this frontend.
 
+## Running End to End
+
+The dashboard now ships with a live FastAPI backend. Every service layer calls
+real endpoints through a Vite dev proxy (`/api` and `/ws` → port 8000), with
+graceful fallback to local mock data when the backend is down.
+
+```bash
+# 1. Frontend deps
+cd ~/EquiNex-Universal-Dashboard && npm install
+
+# 2. Backend (FastAPI)
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
+
+# 3. Terminal A: backend on :8000
+.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+# 4. Terminal B: frontend on :3000
+npm run dev
+# open http://localhost:3000
+```
+
+Optional: set `GEMINI_API_KEY` (or a `.env` with `GEMINI_API_KEY=...`) to power
+the live AI assistant; without it the app still runs fully on the backend.
+
+See `backend/README.md` for the full API surface and the Windows 10 EOL
+isolation directive.
+
 ## Section 1: Features
 
 -   **Dynamic Theming**: UI aesthetic shifts based on the selected AI Persona (`Aura`, `Cygnus`, `Orion`, `Vela`, `Scorpius`).

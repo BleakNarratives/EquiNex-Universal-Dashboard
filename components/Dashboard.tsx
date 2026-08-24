@@ -11,6 +11,7 @@ import TrafficAnalysis from './TrafficAnalysis';
 import FileIntegrityMonitor from './FileIntegrityMonitor';
 import AutonomousOperative from './AutonomousOperative';
 import VoiceAssistant from './VoiceAssistant';
+import AIAssistant from './AIAssistant';
 
 const LoadingSkeleton: React.FC = () => (
     <div className="space-y-6 animate-pulse">
@@ -86,6 +87,13 @@ const Dashboard: React.FC = () => {
                  </div>
                  <div className="lg:col-span-2">
                     <VoiceAssistant />
+                 </div>
+            </div>
+
+            {/* Row 4: AI Assistant */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                 <div className="lg:col-span-5">
+                    <AIAssistant />
                  </div>
             </div>
             

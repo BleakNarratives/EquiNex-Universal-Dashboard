@@ -77,7 +77,7 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
         Object.entries(theme.properties).forEach(([key, value]) => {
             // The error on line 56 occurred here. The root cause is state corruption.
             // By validating on load, we ensure `value` is always a string.
-            document.documentElement.style.setProperty(key, value);
+            document.documentElement.style.setProperty(key, String(value));
         });
         
         // Persist profile changes to local storage

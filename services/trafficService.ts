@@ -1,4 +1,5 @@
 import { ITrafficData } from '../types';
+import { connectWebSocket } from './api';
 
 class TrafficObservable {
     private subscribers: Set<(data: ITrafficData) => void> = new Set();
@@ -6,34 +7,65 @@ class TrafficObservable {
     private isUnderAttack = false;
     private attackCooldown = 0;
     private lastTotalPackets = 5000;
+    private ws: WebSocket | null = null;
 
     subscribe(callback: (data: ITrafficData) => void) {
         this.subscribers.add(callback);
-        if (!this.intervalId) {
-            this.start();
+        if (!this.intervalId && !this.ws) {
+            this.connect();
         }
     }
 
     unsubscribe(callback: (data: ITrafficData) => void) {
         this.subscribers.delete(callback);
         if (this.subscribers.size === 0) {
-            this.stop();
+            this.disconnect();
         }
     }
 
-    private start() {
-        console.log("Establishing real-time traffic data link (WebSocket)...");
-        this.intervalId = window.setInterval(() => {
-            const data = this.generateTrafficData();
-            this.subscribers.forEach(cb => cb(data));
-        }, 500);
+    private connect() {
+        // Try the live backend WebSocket first; fall back to the local simulator.
+        try {
+            this.ws = connectWebSocket('/ws/traffic');
+            this.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data) as ITrafficData;
+                    this.subscribers.forEach(cb => cb(data));
+                } catch {
+                    // ignore malformed frames
+                }
+            };
+            this.ws.onerror = () => this.fallbackToSimulator();
+            this.ws.onclose = () => this.fallbackToSimulator();
+        } catch {
+            this.fallbackToSimulator();
+        }
     }
 
-    private stop() {
+    private fallbackToSimulator() {
+        if (this.ws) {
+            this.ws = null;
+        }
+        if (!this.intervalId && this.subscribers.size > 0) {
+            console.warn("[equinex] WebSocket unavailable — using simulated traffic feed.");
+            this.intervalId = window.setInterval(() => {
+                const data = this.generateTrafficData();
+                this.subscribers.forEach(cb => cb(data));
+            }, 500);
+        }
+    }
+
+    private disconnect() {
+        if (this.ws) {
+            this.ws.onmessage = null;
+            this.ws.onerror = null;
+            this.ws.onclose = null;
+            this.ws.close();
+            this.ws = null;
+        }
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            console.log("Real-time traffic data link closed.");
         }
     }
 

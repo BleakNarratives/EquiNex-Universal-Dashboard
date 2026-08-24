@@ -8,6 +8,18 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // Frontend services call /api/* — proxy to the FastAPI backend.
+          '/api': {
+            target: 'http://localhost:8000',
+            changeOrigin: true,
+          },
+          // Real-time traffic + operative streams.
+          '/ws': {
+            target: 'ws://localhost:8000',
+            ws: true,
+          },
+        },
       },
       plugins: [react()],
       define: {

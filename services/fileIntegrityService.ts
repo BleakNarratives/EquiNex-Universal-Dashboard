@@ -1,5 +1,6 @@
 import { IFileIntegrityStatus, FileStatus } from '../types';
 import { calculateSHA256 } from '../utils/crypto';
+import { withFallback, postJson } from './api';
 
 // This mock data would be replaced by a live backend service (e.g., AIDE, Wazuh)
 const mockFileSystem: Record<string, string> = {
@@ -10,52 +11,50 @@ const mockFileSystem: Record<string, string> = {
   '/sys/nexus_firewall.conf': 'configuration for the multimodal nexus firewall',
 };
 
-let fileStatuses: IFileIntegrityStatus[] = [];
+let mockStatuses: IFileIntegrityStatus[] = [];
 let isInitialized = false;
 
-const initialize = async () => {
+const initializeMock = async () => {
   if (isInitialized) return;
-
-  const initialStatuses: IFileIntegrityStatus[] = [];
+  const statuses: IFileIntegrityStatus[] = [];
   for (const [filePath, content] of Object.entries(mockFileSystem)) {
     const hash = await calculateSHA256(content);
-    initialStatuses.push({ filePath, hash, status: 'VERIFIED' });
+    statuses.push({ filePath, hash, status: 'VERIFIED' });
   }
-  fileStatuses = initialStatuses;
+  mockStatuses = statuses;
   isInitialized = true;
-  console.log('File Integrity Service Initialized (using mock data).');
-
-  // This interval simulates file tampering events from the backend
-  setInterval(async () => {
-    if (Math.random() < 0.15) {
-      const randomIndex = Math.floor(Math.random() * fileStatuses.length);
-      const fileToTamper = fileStatuses[randomIndex];
-      
-      if (fileToTamper.status === 'VERIFIED') {
-        console.warn(`BACKEND EVENT: Tampering detected for ${fileToTamper.filePath}`);
-        fileToTamper.hash = await calculateSHA256(Math.random().toString());
-        fileToTamper.status = 'TAMPERED';
-      }
-    }
-  }, 25000);
 };
 
-const getFileStatuses = async (): Promise<IFileIntegrityStatus[]> => {
-  console.log("Calling Production Endpoint: GET /api/files/status");
-  if (!isInitialized) {
-    await initialize();
-  }
-  return [...fileStatuses]; // Return a copy
+const getMockStatuses = async (): Promise<IFileIntegrityStatus[]> => {
+  await initializeMock();
+  return [...mockStatuses];
 };
 
-const quarantineFile = async (filePath: string): Promise<boolean> => {
-  console.log(`Calling Production Endpoint: POST /api/files/quarantine for ${filePath}`);
-  const file = fileStatuses.find(f => f.filePath === filePath);
+const quarantineMock = async (filePath: string): Promise<boolean> => {
+  await initializeMock();
+  const file = mockStatuses.find(f => f.filePath === filePath);
   if (file) {
     file.status = 'QUARANTINED';
     return true;
   }
   return false;
+};
+
+const getFileStatuses = (): Promise<IFileIntegrityStatus[]> => {
+  return withFallback<IFileIntegrityStatus[]>(
+    '/api/files/status',
+    () => new Promise(resolve => setTimeout(() => resolve(getMockStatuses()), 800)),
+  );
+};
+
+const quarantineFile = async (filePath: string): Promise<boolean> => {
+  try {
+    await postJson<IFileIntegrityStatus>('/api/files/quarantine', { filePath });
+    return true;
+  } catch (err) {
+    console.warn(`[equinex] backend unreachable for POST /api/files/quarantine — applying locally.`, err);
+    return quarantineMock(filePath);
+  }
 };
 
 export const fileIntegrityService = {

@@ -1,4 +1,5 @@
 import { IScanResult } from '../types';
+import { postJson } from './api';
 
 const mockScanResults: Record<string, IScanResult> = {
     'corp.equinex.io': {
@@ -26,30 +27,24 @@ const mockScanResults: Record<string, IScanResult> = {
     }
 };
 
+const getMockScan = (target: string): IScanResult => {
+    const key = target.toLowerCase();
+    if (mockScanResults[key]) return mockScanResults[key];
+    if (key === '127.0.0.1') return mockScanResults['localhost'];
+    return {
+        target,
+        status: 'Offline',
+        ports: [],
+        vulnerabilities: [],
+    };
+};
+
 const scanTarget = (target: string): Promise<IScanResult> => {
-    console.log(`Calling Production Endpoint: POST /api/osint/scan for target: ${target}`);
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const key = target.toLowerCase();
-            let result: IScanResult;
-            
-            if (mockScanResults[key]) {
-                result = mockScanResults[key];
-            } else if (key === '127.0.0.1') {
-                result = mockScanResults['localhost'];
-            }
-            else {
-                result = { 
-                    target: target,
-                    status: 'Offline',
-                    ports: [],
-                    vulnerabilities: [],
-                };
-            }
-            
-            resolve(result);
-        }, 2500);
-    });
+    return postJson<IScanResult>('/api/osint/scan', { target })
+        .catch((err) => {
+            console.warn(`[equinex] backend unreachable for POST /api/osint/scan — using local fallback.`, err);
+            return new Promise<IScanResult>(resolve => setTimeout(() => resolve(getMockScan(target)), 2500));
+        });
 };
 
 export const osintService = {

@@ -1,4 +1,5 @@
 import { IDashboardMetrics, ILogEntry, IHistoricalDataPoint, IModuleStatus } from '../types';
+import { withFallback, postJson } from './api';
 
 let mockModules: IModuleStatus[] = [
     { module_name: 'Biome Generation', status: 'Online', version: 'v2.1.8-terra' },
@@ -30,51 +31,55 @@ const mockLogs: ILogEntry[] = [
     { level: 'INFO', message: 'Cognito-stream #1138 connection established.', timestamp: '2024-07-29T10:03:32Z' },
 ];
 
+const getMockLogs = (): ILogEntry[] => [
+    ...mockLogs,
+    { level: 'INFO', message: 'Heartbeat check successful. All modules reporting.', timestamp: new Date().toISOString() }
+];
+
+const getMockHistorical = (metric: 'users' | 'revenue'): IHistoricalDataPoint[] => {
+    const data: IHistoricalDataPoint[] = [];
+    const now = new Date();
+    for (let i = 30; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString();
+        const value = metric === 'users'
+            ? 42000 - i * 100 + Math.random() * 500
+            : 100420 - i * 500 + Math.random() * 2000;
+        data.push({ timestamp, value: Math.round(value) });
+    }
+    return data;
+};
+
 const getMetrics = (): Promise<IDashboardMetrics> => {
-  console.log("Calling Production Endpoint: GET /api/metrics");
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(getMockData());
-    }, 800);
-  });
+    return withFallback<IDashboardMetrics>(
+        '/api/metrics',
+        () => new Promise(resolve => setTimeout(() => resolve(getMockData()), 800)),
+    );
 };
 
 const fetchSystemLogs = (): Promise<ILogEntry[]> => {
-    console.log("Calling Production Endpoint: GET /api/logs");
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const newLog: ILogEntry = {
-                level: 'INFO',
-                message: `Heartbeat check successful. All modules reporting.`,
-                timestamp: new Date().toISOString()
-            };
-            resolve([...mockLogs, newLog]);
-        }, 600);
-    });
+    return withFallback<ILogEntry[]>(
+        '/api/logs',
+        () => new Promise(resolve => setTimeout(() => resolve(getMockLogs()), 600)),
+    );
 };
 
 const fetchHistoricalData = (metric: 'users' | 'revenue'): Promise<IHistoricalDataPoint[]> => {
-    console.log(`Calling Production Endpoint: GET /api/historical/${metric}`);
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const data: IHistoricalDataPoint[] = [];
-            const now = new Date();
-            for (let i = 30; i >= 0; i--) {
-                const timestamp = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString();
-                const value = metric === 'users' 
-                    ? 42000 - i * 100 + Math.random() * 500
-                    : 100420 - i * 500 + Math.random() * 2000;
-                data.push({ timestamp, value: Math.round(value) });
-            }
-            resolve(data);
-        }, 1200);
-    });
+    return withFallback<IHistoricalDataPoint[]>(
+        `/api/historical/${metric}`,
+        () => new Promise(resolve => setTimeout(() => resolve(getMockHistorical(metric)), 1200)),
+    );
 };
 
-const setModuleStatus = (moduleName: string, status: IModuleStatus['status']): void => {
+const setModuleStatus = async (moduleName: string, status: IModuleStatus['status']): Promise<void> => {
+    try {
+        await postJson<IModuleStatus>('/api/modules/status', { module_name: moduleName, status });
+        return;
+    } catch (err) {
+        console.warn(`[equinex] backend unreachable for POST /api/modules/status — applying locally.`, err);
+    }
+    // Local fallback: mutate the mock so the operative action still takes effect
     const module = mockModules.find(m => m.module_name === moduleName);
     if (module) {
-        console.log(`OPERATIVE ACTION (POST /api/modules/status): Setting ${moduleName} to ${status}`);
         module.status = status;
     } else {
         console.warn(`Attempted to set status for unknown module: ${moduleName}`);

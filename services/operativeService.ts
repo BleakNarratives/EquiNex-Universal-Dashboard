@@ -1,5 +1,16 @@
 import { metricsService } from './metricsService';
 import { OperativeAction } from '../types';
+import { fetchJson, postJson } from './api';
+
+interface EndpointInventory {
+    id: string;
+    hostname: string;
+    os: string;
+    patch_level: string;
+    status: 'Online' | 'Offline' | 'Isolated';
+    risk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    risk_reason?: string;
+}
 
 // Using a simple class-based observable for clean subscription management
 class OperativeObservable {
@@ -35,12 +46,23 @@ class OperativeObservable {
     }
 
     private async runCycle() {
+        // Phase 1: EOL endpoint sweep (README Section 5) — highest priority.
+        const isolated = await this.sweepEolEndpoints();
+        if (isolated) {
+            const action: OperativeAction = {
+                id: ++this.actionId,
+                timestamp: new Date().toISOString(),
+                action: isolated.action,
+                reasoning: isolated.reasoning,
+                status: 'COMPLETED',
+            };
+            this.subscribers.forEach(cb => cb(action));
+            return;
+        }
+
+        // Phase 2: telemetry-driven corrective action.
         const telemetry = await this.gatherTelemetry();
-        // In a real system, we'd pass telemetry to a more complex AI prompt
-        // For this version, we simulate the AI's decision based on telemetry
         const decision = this.makeDecision(telemetry);
-        
-        // Execute the decided action
         decision.execute();
 
         const action: OperativeAction = {
@@ -52,6 +74,40 @@ class OperativeObservable {
         };
 
         this.subscribers.forEach(cb => cb(action));
+    }
+
+    /**
+     * Fetch the endpoint inventory and proactively isolate any endpoint still
+     * running Windows 10 past end-of-life (2025-10-14). Returns the isolation
+     * action taken, or null when nothing needs isolating.
+     */
+    private async sweepEolEndpoints(): Promise<{ action: string; reasoning: string } | null> {
+        let endpoints: EndpointInventory[];
+        try {
+            endpoints = await fetchJson<EndpointInventory[]>('/api/endpoints');
+        } catch (err) {
+            console.warn('[equinex] endpoint inventory unavailable — skipping EOL sweep.', err);
+            return null;
+        }
+
+        const vulnerable = endpoints.find(
+            ep => ep.risk === 'CRITICAL' && ep.status !== 'Isolated' && /Windows 10/.test(ep.os),
+        );
+        if (!vulnerable) return null;
+
+        try {
+            await postJson('/api/endpoints/isolate', { id: vulnerable.id });
+        } catch (err) {
+            console.warn(`[equinex] failed to isolate ${vulnerable.hostname}.`, err);
+            return null;
+        }
+
+        const action = `Proactive network isolation of ${vulnerable.hostname} (${vulnerable.os}).`;
+        const reasoning = (
+            `Proactive isolation of EOL Windows 10 endpoint to mitigate ` +
+            `unpatchable vulnerability exposure.`
+        );
+        return { action, reasoning };
     }
 
     private async gatherTelemetry() {
@@ -71,7 +127,7 @@ class OperativeObservable {
                 execute: () => metricsService.setModuleStatus(moduleToFix, 'Online'),
             };
         }
-        
+
         // Default actions if no immediate threats are found
         const routineActions = [
             {
